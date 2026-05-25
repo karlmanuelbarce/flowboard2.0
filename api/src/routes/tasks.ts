@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response, Router } from 'express';
 import { z } from 'zod';
 import { AppError } from '../errors/AppError';
+import prisma from '../lib/prisma';
 
 const router = Router();
 
@@ -26,8 +27,9 @@ router.get(
   async (req: Request<TaskIdParamType>, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { id } = TaskIdParam.parse(req.params);
-      // TODO: replace with prisma.task.findUnique on Day 2
-      throw new AppError(`Task ${id} not found`, 404, 'TASK_NOT_FOUND');
+      const task = await prisma.task.findUnique({ where: { id } });
+      if (!task) throw new AppError('Task not found', 404, 'TASK_NOT_FOUND');
+      res.json({ success: true, data: task });
     } catch (err) {
       next(err);
     }
@@ -39,8 +41,10 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const body: CreateTaskInput = CreateTaskSchema.parse(req.body);
-      // TODO: replace with prisma.task.create on Day 2
-      res.status(201).json({ success: true, data: { ...body, id: 'stub-id' } });
+      const task = await prisma.task.create({
+        data: { ...body, ownerId: req.user!.id },
+      });
+      res.status(201).json({ success: true, data: task });
     } catch (err) {
       next(err);
     }
@@ -57,8 +61,8 @@ router.patch(
     try {
       const { id } = TaskIdParam.parse(req.params);
       const body: UpdateTaskInput = UpdateTaskSchema.parse(req.body);
-      // TODO: replace with prisma.task.update on Day 2
-      res.status(200).json({ success: true, data: { id, ...body } });
+      const task = await prisma.task.update({ where: { id }, data: body });
+      res.json({ success: true, data: task });
     } catch (err) {
       next(err);
     }
@@ -69,8 +73,8 @@ router.delete(
   '/:id',
   async (req: Request<TaskIdParamType>, res: Response, next: NextFunction): Promise<void> => {
     try {
-      TaskIdParam.parse(req.params);
-      // TODO: replace with prisma.task.delete on Day 2
+      const { id } = TaskIdParam.parse(req.params);
+      await prisma.task.delete({ where: { id } });
       res.status(204).send();
     } catch (err) {
       next(err);
