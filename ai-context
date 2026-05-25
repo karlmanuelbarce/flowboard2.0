@@ -1,0 +1,45 @@
+# FlowBoard AI Context
+
+## Stack
+- Node.js 22, TypeScript 5 strict mode
+- Express 4, Prisma 5 (PostgreSQL 16), Redis 7 (ioredis 5)
+- Zod 3 for all request validation
+- Pino for structured logging
+- Jest + Supertest for integration tests
+- Docker Compose orchestrates all services
+
+## Project Structure
+- api/src/app.ts           — Express app setup, middleware, route mounting
+- api/src/server.ts        — app.listen only
+- api/src/routes/          — auth.ts, boards.ts, tasks.ts, health.ts
+- api/src/middleware/      — authenticate.ts, rateLimiter.ts
+- api/src/lib/             — prisma.ts, redis.ts, logger.ts, events.ts
+- api/src/errors/          — AppError.ts (class + globalErrorHandler)
+- worker/src/index.ts      — Redis Stream consumer loop
+- worker/src/handlers/     — taskCreated.ts, taskUpdated.ts, taskDeleted.ts
+
+## Error Handling
+- All async route handlers use try/catch
+- Errors passed to next(err) — never res.send() in catch blocks
+- HTTP errors use AppError class (src/errors/AppError.ts)
+- ZodError → 422, AppError → statusCode, Prisma P2025 → 404, P2002 → 409
+
+## TypeScript Rules
+- Strict mode on — no implicit any
+- All function parameters and return types annotated
+- Prefer interfaces for object shapes, type aliases for unions/intersections
+
+## Response Format
+- Success: { success: true, data: ... }
+- Error: { success: false, message: '...', code: '...' }
+
+## Security Rules
+- Never spread req.body directly into Prisma — always use Zod-parsed values
+- All route IDs validated as UUID via Zod
+- No stack traces in error responses when NODE_ENV=production
+- Passwords and tokens must be redacted in log output
+
+## Dead-Letter Queue
+- Key: tasks:events:dlq
+- Format: XADD tasks:events:dlq * originalId <id> action <action> taskId <taskId> error <message> failedAt <timestamp>
+- Messages moved here after 3 failed processing attempts
