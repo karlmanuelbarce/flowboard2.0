@@ -1,0 +1,8 @@
+services:
+  api:
+    environment:
+      DATABASE_URL: postgresql://flowboard:flowboard@db:5432/flowboard_test
+      NODE_ENV: test
+  db:
+    environment:
+      POSTGRES_DB: flowboard_test
